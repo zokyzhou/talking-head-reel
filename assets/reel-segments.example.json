@@ -1,6 +1,6 @@
 {
   "fps": 30,
-  "outro": 3.0,
+  "outro": 0,
   "source": "PLACEHOLDER: timings of a fictional recording, so the example composition compiles. Replace with your own cut (cut.py rewrites this file).",
   "segments": [
     {
@@ -18,5 +18,5 @@
       "editStart": 23.0
     }
   ],
-  "totalFrames": 1290
+  "totalFrames": 1200
 }

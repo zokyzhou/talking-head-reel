@@ -3,8 +3,8 @@
 People record the way people record: say a sentence, dislike it, say it
 again, keep going when it lands, and restart the whole thing once they
 have warmed up. So the recording is a script read two or three times
-over, with the fluent versions towards the end, and the transcript table
-is a map of it. The job is to pick one version of each sentence and lay
+over; the transcript table is a map of the candidate takes, not a ranking
+of their expression or usefulness. The job is to pick one version of each sentence and lay
 them back to back in script order.
 
 ## Procedure
@@ -19,13 +19,14 @@ them back to back in script order.
      words; the live wording is usually better);
    - fluent, no stumble inside the sentence, no filler the speaker would
      cut;
-   - later over earlier, all else equal, because people warm up;
+   - expressive, clear, and natural delivery; watch/listen to candidates
+     rather than assuming the later take is better;
    - inside a run: when sentences 5, 6, 7, 8 come in one breath, take the
      run as one segment rather than the best of each, so the delivery
      stays continuous and there is one cut instead of four.
 4. Splices from a different run are fine for one-liners (a joke, a call to
-   action that landed only once) if the framing matches; the snap zoom at
-   the cut hides small differences, a lighting change does not.
+   action that landed only once) if framing and lighting match. A purposeful crop can help continuity,
+   but it is not required at every cut.
 5. Cut points from WORD times (`transcribe.py`'s raw json, or `cut.py`'s
    table): `a` = first word start minus 0.10 to 0.15 s, `b` = last word end
    plus 0.20 to 0.30 s, never later than the start of the next spoken
@@ -33,10 +34,11 @@ them back to back in script order.
    three seconds), the sound is somewhere inside it; find it with
    `ffmpeg -ss <t> -t <d> -i src -af silencedetect=noise=-32dB:d=0.25 -f null -`
    and start just before the last sound.
-6. Pauses inside a take longer than about 1 s can be removed with a cut
-   and a snap zoom. Pauses under 0.5 s stay; they are the speaker's
-   rhythm.
-7. Lines never said do not appear, not as captions, not as cards. If the
+6. Review long pauses by listening. Remove empty waiting; preserve a
+   question landing, a breath, or an expressive beat. Duration alone does
+   not decide the cut, and removing a pause does not require a zoom.
+7. Captions reflect actual speech; cards can summarize it or add verified
+   source attribution, never invent a claim or personal experience. If the
    script had a joke the speaker did not deliver, say so in the handover.
 
 ## Worked example (a fictional recording)
@@ -59,7 +61,7 @@ second one after an "okay, again". Picks:
 | 1, 2, 3 | 10.0 - 33.0, one run | fluent, the numbers land, the platform names are in one breath | 0.9 - 9.2: sentence 1 said twice with a restart in the middle |
 | 4, 5 | 48.0 - 65.0, one run | the complete close, ends on "Cheers" | 33.4 - 44.8: sentence 4 without its last item, then "okay, again" |
 
-Result: 2 takes, 40 s of speech, 3 s frozen outro. That is the cut in
+Result: 2 takes, 40 s of speech, no frozen outro. That is the cut in
 `assets/reel-segments.example.json` and the timeline in
 `assets/Reel.example.tsx`; the word timings in `reel-words.json` are
 spread evenly over each sentence, which real whisper output is not, so

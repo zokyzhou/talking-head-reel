@@ -1,90 +1,82 @@
-# Vertical layout and zoom grammar
+# Vertical layout and framing
 
-The stage is 1080x1920. There is no empty side of the frame: the speaker
-is centred, the shoulders touch both edges, and the only free wall is a
-strip above the head that Instagram covers anyway. So the overlays share
-the frame with the body, never with the face.
+Read `editing-style.md` for the creative direction. The stage is 1080x1920;
+placement depends on the recording and destination, not just its size.
 
-## Measured geometry (phone on a table, speaker seated, face in the upper third)
+## Measure the recording
 
-| feature | y (px, base zoom 1.0) |
-|---|---|
-| top of hair | 180 |
-| eyes | 540 |
-| face centre (zoom origin `50% 29%`) | 560 |
-| mouth | 810 |
-| chin | 900 (about 935 at 1.1, 950 at 1.15) |
-| shoulders | 1000 to 1100 |
-| hands when gesturing | 1150 to 1700 |
-| table edge | 1750 |
+Inspect a frame with `ffmpeg -vf drawgrid=width=108:height=192`. Locate the
+face, chin, expressive hand movements, and available space. Inspect again
+at the strongest crop. Move, resize, shorten, or omit cards that obscure
+expressions or gestures. Do not reserve a permanent reaction slot.
 
-Measure a new recording the same way: one frame with a 10x10 grid
-(`ffmpeg -vf drawgrid=width=108:height=192`) is enough. If the face sits
-lower, move `CARD_Y` down with it; the captions stay where they are.
+The included fictional template uses these starting values:
 
-## Instagram safe zones (Reels, 1080x1920)
+| Control | Starting value | Purpose |
+|---|---|---|
+| Zoom origin | `50% 29%` | Face position in the example, remeasure for real footage |
+| Card | x 60, y 990, width 870 | Below the example face; includes padding in its width |
+| Captions | left 60, right 150, bottom 450 | Inset example caption area; verify current platform controls |
+| Caption type | 58 px, warm white, weight 700 | Readable phrases; adjust after phone-size inspection |
+| Accent | `#FFD166` | Selected important words or a key number |
 
-- Top 250 px: the "Reels" title and camera icon.
-- Bottom 450 px: username, caption, audio strip.
-- Right 130 px from about y 1000 to 1500: like, comment, share, more.
+These values are not certified safe zones. UI overlays vary with platform,
+posting context, device, and caption length. For X, Xiaohongshu/RedNote,
+TikTok, YouTube Shorts, or Instagram, inspect the current destination
+preview when available. Keep critical text away from controls and expanded
+captions. If no preview is available, use conservative insets and report
+that the destination UI check remains outstanding; do not claim verification.
 
-Anything important stays inside x 60 to 930, y 250 to 1470.
+## Captions and explanatory visuals
 
-## The bands
+`ReelCaptions` groups on punctuation, pauses, six words, or a 32-character
+budget by default. All words in a phrase remain steady and readable;
+`emphasisWords` selectively colors chosen terms, without word-by-word motion.
+Adjust `groupSize`, `maxCharacters`, `size`, and `bottom` for the recording
+and language. Chinese tokenization may require manually divided phrases;
+inspect mixed-language and long words rather than assuming word count
+ensures two lines. Never hide or truncate spoken words to make them fit.
 
-- Card band: `CARD_X` 60, `CARD_W` 870, `CARD_Y` 990. Cards grow
-  downward; keep them under 340 px tall (four list lines, a quote card
-  with a big line and a sub, a prompt card with three lines of mono, or
-  three 200 px polaroids with labels). One card or one row at a time.
-- Chip rows: size 130, gap 26, labels 30 px on white pills. Five chips
-  are 754 px wide, the widest row that fits.
-- Captions: bottom edge at y 1470 (`CAP_BOTTOM` 450), 66 px, weight 800,
-  three words or up to punctuation, wrapped inside 900 px, dark pill.
-  Spoken words white, the current word in the accent `#FFD166` at 1.06
-  scale, unspoken words at 42 percent.
-- Reaction slot: x 720 to 1040, y 240 to 600, the wall to the right of
-  the head. `BigLogo` 280 px at x 720 (a 300 px one overshoots the frame
-  edge at the top of its spring), `BigEmoji` in a 400 px box at x 690
-  y 240 (no background, so brushing the hair is fine), `Meme` 240 to
-  300 px wide with a white border and a 3 to 5 degree tilt. One at a
-  time.
-- REC badge or any small tag: top-left, x 60, y 300, when the reaction
-  slot is in use; top-right otherwise.
-- End card: white card at y 640, 900 px wide, over a 55 percent dim of the
-  frozen last frame; a small URL line under it.
+Use one or two caption lines. Check every phrase, especially the longest,
+at phone size. Maintain a gap between captions and cards. `SimpleCard`
+fades quietly, contains no sound, and accepts `text`, optional source
+`label`, position, width, size, and accent. Use short cards with enough time
+to read them; show verified quotation excerpts with attribution. Screenshots
+and diagrams should explain the spoken point rather than add new claims.
 
-## Zoom grammar
+Legacy components remain available, but some bounce or include embedded
+sound (`LogoRow`, `PromptCard`, `Takes`, and others). Inspect their behavior
+before choosing them; they are not part of the default template.
 
-`useZoom` multiplies two layers:
+## Framing
 
-1. `SNAPS`, `[originalSecond, baseZoom][]`: a step function. Put one at
-   every cut (the first frame of each take) and at most sentence starts
-   inside a long take, alternating 1.0 / 1.1; 1.12 for a punchline. About
-   one every three to four seconds. Each one gets a `tap.wav` at 0.22.
-2. `PUSHES`, `{at, z, up, until, down}`: a slow push-in on the line that
-   matters: 1.10 to 1.15 reached over 8 to 16 frames, held `until` a
-   second (usually the end of its take) or released over `down` frames.
-   Four to six per reel. The last one holds through the outro.
+`useZoom` multiplies base framing (`SNAPS`) and emphasis (`PUSHES`):
 
-Both are in original-recording seconds and go through `E()`, so a snap
-at a cut is written as the take's `a`.
+- `SNAPS`: `[originalSecond, baseZoom][]`. Set the initial scale, then
+  change it only for continuity or a change of thought. No cut sound.
+- `PUSHES`: `{at, z, up, until, down}` with original seconds for `at` and
+  `until`, frame counts for `up` and `down`, and relative multiplier `z`.
+  A gentle example is 1.0 to 1.06 over 24 frames, then release over 18.
 
-Why snaps and not crossfades: two takes of the same sentence dissolved
-into each other look like a mistake; the same two takes with a framing
-change between them look like a two-camera shoot.
+All original times go through `E()`. It throws for removed material. Avoid
+stacking pushes and inspect the final multiplied crop. Two or three changes
+per minute are a starting point, not a quota. Clean cuts can stand alone.
 
-## Sound
+## Sound and ending
 
-- Chips pop (`pop.wav` 0.28 to 0.30, built into `LogoRow` and `Takes`);
-  the big logo, the emoji, memes and hero chips pop a little louder (0.35
-  to 0.42).
-- Stamps and the big quote line thud (`thud.wav` 0.4 to 0.55).
-- The strike-through whooshes (`whoosh.wav` 0.3).
-- A win dings (`ding.wav` 0.35).
-- Typing ticks every seven characters (`tick.wav` 0.22, inside `PromptCard`).
-- Snap zooms tap (`tap.wav` 0.22).
-- Audio at every take boundary fades over 2 frames in and 3 frames out
-  (the `volume` callback on each `OffthreadVideo`), so cuts do not click.
-- No music bed by default: pick a track in the app when posting (reach,
-  and no licence question). If one has to be baked in, check its licence
-  first and say so in the handover.
+Retain short audio fades at take boundaries to prevent clicks. Listen to
+the actual transitions. Keep voice clear and avoid automatic taps, pops,
+or typing ticks. Occasional quiet effects and music are optional; verify
+usage rights for the chosen track and destinations.
+
+Set `outro` to 0 for the natural ending. A positive value enables the
+optional freeze/end card in the template; replace its example labels and
+URL only when that treatment is approved. Review the closing frame and
+make sure it neither clips the last word nor adds empty waiting.
+
+## Preview checks
+
+Check the opening, strongest crop, each card, longest caption, every cut,
+and final frame. Review the representative 10–15 second preview for rhythm,
+voice, caption readability, gestures, and sound before completing the reel
+as described in `editing-style.md`. A code build cannot validate these choices.

@@ -15,14 +15,14 @@ import { Card, Chip, FONT, MONO, Shadow, Word, ease } from "./overlays";
 // Overlay grammar for the VERTICAL (1080x1920) talking-head reel. The
 // speaker is centred and fills the width, so there is no side column:
 // cards live in a band between the chin and the captions, captions sit
-// above the Instagram UI, and everything is short-lived.
+// above the destination UI; remeasure for each recording and platform.
 
 export const REEL_W = 1080;
 export const REEL_H = 1920;
-export const CARD_X = 60; // cards keep clear of the IG action icons on the right (x > 940)
+export const CARD_X = 60; // starting inset; verify destination UI
 export const CARD_W = 870;
 export const CARD_Y = 990; // below the chin at the strongest push-in
-export const CAP_BOTTOM = 450; // captions bottom edge at y 1470, above the IG caption/audio strip
+export const CAP_BOTTOM = 450; // starting bottom inset; verify destination UI
 export const ACCENT = "#FFD166";
 export const RED = "#FF453A";
 
@@ -33,82 +33,83 @@ export const Sfx: React.FC<{ at: number; src: string; vol?: number }> = ({ at, s
   </Sequence>
 );
 
-// Word-timed captions for the vertical frame: three words at a time or up
-// to punctuation, wrapped inside a 900 px pill, the spoken word bright and
-// the current word in the accent colour.
-export const ReelCaptions: React.FC<{ words: Word[]; groupSize?: number; size?: number; bottom?: number }> = ({
-  words,
-  groupSize = 3,
-  size = 66,
-  bottom = CAP_BOTTOM,
-}) => {
+// Steady phrase captions. Word timestamps still drive exact timing; only
+// explicitly selected terms receive an accent. Break on punctuation,
+// pauses, or a readable character budget; inspect at phone size.
+export const ReelCaptions: React.FC<{
+  words: Word[];
+  groupSize?: number;
+  maxCharacters?: number;
+  size?: number;
+  bottom?: number;
+  emphasisWords?: string[];
+}> = ({ words, groupSize = 6, maxCharacters = 32, size = 58,
+  bottom = CAP_BOTTOM, emphasisWords = [] }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = frame / fps;
+  const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}%]/gu, "");
+  const emphasis = new Set(emphasisWords.map(normalize));
   const groups: Word[][] = [];
   let cur: Word[] = [];
   for (const w of words) {
+    const prev = cur[cur.length - 1];
+    const candidate = [...cur, w].map((word) => word.word.trim()).join(" ");
+    if (cur.length && (candidate.length > maxCharacters || w.start - prev.end > 0.45)) {
+      groups.push(cur);
+      cur = [];
+    }
     cur.push(w);
-    const punct = /[.?!,]$/.test(w.word.trim());
-    if (cur.length >= groupSize || punct) {
+    if (cur.length >= groupSize || /[.?!,;:。！？，；：]$/.test(w.word.trim())) {
       groups.push(cur);
       cur = [];
     }
   }
   if (cur.length) groups.push(cur);
-  const g = groups.find((gr) => t >= gr[0].start - 0.05 && t < gr[gr.length - 1].end + 0.3);
-  if (!g) return null;
-  const gStart = g[0].start - 0.05;
-  const a = ease(t, gStart, gStart + 0.1);
-  const current = [...g].reverse().find((w) => t >= w.start - 0.02);
+  const index = groups.findIndex((gr, i) => {
+    const end = Math.min(gr[gr.length - 1].end + 0.2, groups[i + 1]?.[0].start ?? Infinity);
+    return t >= gr[0].start && t < end;
+  });
+  if (index < 0) return null;
+  const g = groups[index];
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom,
-        display: "flex",
-        justifyContent: "center",
-        fontFamily: FONT,
-        opacity: a,
-        transform: `translateY(${(1 - a) * 14}px) scale(${0.96 + 0.04 * a})`,
-      }}
-    >
-      <div
-        style={{
-          background: "rgba(12,12,14,0.88)",
-          borderRadius: 22,
-          padding: "16px 32px",
-          fontSize: size,
-          fontWeight: 800,
-          letterSpacing: -0.5,
-          lineHeight: 1.15,
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: "4px 16px",
-          maxWidth: 900,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-        }}
-      >
-        {g.map((w, i) => {
-          const on = t >= w.start - 0.02;
-          const isCur = w === current;
-          return (
-            <span
-              key={i}
-              style={{
-                color: isCur ? ACCENT : on ? "#fff" : "rgba(255,255,255,0.42)",
-                display: "inline-block",
-                transform: isCur ? "scale(1.06)" : "none",
-              }}
-            >
+    <div style={{ position: "absolute", left: 60, right: 150, bottom,
+      display: "flex", justifyContent: "center", fontFamily: FONT }}>
+      <div style={{ background: "rgba(18,18,20,0.82)", borderRadius: 18,
+        padding: "14px 24px", fontSize: size, fontWeight: 700,
+        lineHeight: 1.18, maxWidth: 820, boxSizing: "border-box",
+        textAlign: "center", overflowWrap: "anywhere", color: "#FFF8EC" }}>
+        {g.map((w, i) => (
+          <React.Fragment key={i}>
+            {i > 0 ? " " : null}
+            <span style={{ color: emphasis.has(normalize(w.word)) ? ACCENT : undefined }}>
               {w.word.trim()}
             </span>
-          );
-        })}
+          </React.Fragment>
+        ))}
       </div>
+    </div>
+  );
+};
+
+// A restrained explanatory card: quiet fade, no spring or built-in sound.
+// label can identify a verified source; text must reflect the spoken idea.
+export const SimpleCard: React.FC<{
+  life: number; text: string; label?: string; x?: number; y?: number;
+  width?: number; size?: number; accent?: boolean;
+}> = ({ life, text, label, x = CARD_X, y = CARD_Y,
+  width = CARD_W, size = 64, accent = false }) => {
+  const frame = useCurrentFrame();
+  const fade = Math.max(1, Math.min(6, life / 2));
+  const opacity = Math.max(0, Math.min(1, frame / fade, (life - frame) / fade));
+  return (
+    <div style={{ position: "absolute", left: x, top: y, width,
+      boxSizing: "border-box", padding: "24px 30px", borderRadius: 22,
+      background: "rgba(18,18,20,0.9)", color: "#FFF8EC",
+      fontFamily: FONT, opacity }}>
+      {label ? <div style={{ fontSize: 28, marginBottom: 12, color: "#FFF8EC" }}>{label}</div> : null}
+      <div style={{ fontSize: size, fontWeight: 700, lineHeight: 1.12,
+        overflowWrap: "anywhere", color: accent ? ACCENT : "#FFF8EC" }}>{text}</div>
     </div>
   );
 };
